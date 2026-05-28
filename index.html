@@ -1537,9 +1537,20 @@ async function saveCat() {
   if (!name) { alert('Nama kategori wajib diisi'); return; }
   const data = { name, hasVariant };
   if (editCatId) {
+    const oldCat = categories.find(x => x.id === editCatId);
+    const oldName = oldCat ? oldCat.name : null;
     await db.collection('categories').doc(editCatId).update(data);
     const i = categories.findIndex(x => x.id === editCatId);
     if (i > -1) categories[i] = { ...categories[i], ...data };
+    // update all materials that use old category name
+    if (oldName && oldName !== name) {
+      const affected = materials.filter(m => m.cat === oldName);
+      for (const m of affected) {
+        await db.collection('materials').doc(m.id).update({ cat: name });
+        m.cat = name;
+      }
+      if (affected.length) showToast(`Kategori & ${affected.length} bahan diupdate`);
+    }
   } else {
     const r = await db.collection('categories').add(data);
     categories.push({ id: r.id, ...data });
@@ -1547,6 +1558,7 @@ async function saveCat() {
   closeCatModal();
   renderCategories();
   refreshCatSelects();
+  if (document.getElementById('screen-database').classList.contains('active')) renderDB();
   showToast(editCatId ? 'Kategori diupdate' : 'Kategori ditambahkan');
 }
 
@@ -1556,6 +1568,7 @@ async function deleteCat(id) {
   categories = categories.filter(x => x.id !== id);
   renderCategories();
   refreshCatSelects();
+  if (document.getElementById('screen-database').classList.contains('active')) renderDB();
   showToast('Kategori dihapus');
 }
 
